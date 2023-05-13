@@ -1,65 +1,67 @@
-`timescale 1ns / 1ps
-
-module fsm_controller(clk,rst,start,next_zero, LD_SUM, LD_NEXT, SUM_SEL, NEXT_SEL, A_SEL, DONE);
-  input clk,rst,start,next_zero;
+module fsm_controller(clk, rst_n,next_zero,start ,LD_SUM,LD_NEXT,SUM_SEL,NEXT_SEL,A_SEL,DONE);
+  parameter START=0,COMPUTE_SUM=1,GET_NEXT=2,S_DONE=3;
+  input clk,rst_n,start,next_zero;
   output reg LD_SUM,LD_NEXT,SUM_SEL,NEXT_SEL,A_SEL,DONE;
-  reg [1:0] state;
-  parameter START = 2'b00;
-  parameter COMPUTE_SUM = 2'b01;
-  parameter GET_NEXT = 2'b10;
-  parameter STATE_DONE = 2'b11;
+  reg [1:0] STATE,STATENEXT;
+  always @(STATE,start,next_zero) begin
+    case(STATE)
+      START:begin
+        LD_SUM<=0;
+        LD_NEXT<=0;
+        SUM_SEL<=0;
+        NEXT_SEL<=0;
+        A_SEL<=0;
+        DONE<=0;
+        if(start==0)
+          STATENEXT<=START;
+        else
+          STATENEXT<=COMPUTE_SUM;
+      end
 
-  initial begin
-    state <= START;
-    {LD_SUM , LD_NEXT , SUM_SEL , NEXT_SEL , A_SEL , DONE} <= 6'b000000;
+      COMPUTE_SUM:begin
+        LD_SUM<=1;
+        LD_NEXT<=0;
+        SUM_SEL<=1;
+        NEXT_SEL<=1;
+        A_SEL<=1;
+        DONE<=0;
+        STATENEXT<=GET_NEXT;
+      end
+
+      GET_NEXT:begin
+        if(next_zero==0)
+          STATENEXT<=COMPUTE_SUM;
+        else
+          STATENEXT<=S_DONE;
+          LD_SUM<=0;
+          LD_NEXT<=1;
+          SUM_SEL<=1;
+          NEXT_SEL<=1;
+          A_SEL<=0;
+          DONE<=0;
+
+      end
+
+      S_DONE:begin
+        LD_SUM<=0;
+        LD_NEXT<=0;
+        SUM_SEL<=0;
+        NEXT_SEL<=0;
+        A_SEL<=0;
+        DONE<=1;
+      if(start==1)
+        STATENEXT<=S_DONE;
+      else
+        STATENEXT<=START;
+      end
+
+    endcase
   end
 
-  always @ (posedge clk) begin
-    if(rst == 1) begin
-      state <= START;
-      {LD_SUM , LD_NEXT , SUM_SEL , NEXT_SEL , A_SEL , DONE} <= 6'b000000;
-    end
-    else begin
-      case(state)
-        START: begin
-          if(start == 0) begin
-            state <= START;
-            {LD_SUM , LD_NEXT , SUM_SEL , NEXT_SEL , A_SEL , DONE} <= 6'b000000;
-          end
-          else if(start == 1) begin
-            state <= COMPUTE_SUM;
-            {LD_SUM , LD_NEXT , SUM_SEL , NEXT_SEL , A_SEL , DONE} <= 6'b101110;
-          end
-        end
-
-        COMPUTE_SUM: begin
-          state <= GET_NEXT;
-          {LD_SUM , LD_NEXT , SUM_SEL , NEXT_SEL , A_SEL , DONE} <= 6'b011100;
-        end
-
-        GET_NEXT: begin
-          if(next_zero == 0) begin
-            state <= COMPUTE_SUM;
-            {LD_SUM , LD_NEXT , SUM_SEL , NEXT_SEL , A_SEL , DONE} <= 6'b101110;
-          end
-          else if(next_zero == 1) begin
-            state <= STATE_DONE;
-            {LD_SUM , LD_NEXT , SUM_SEL , NEXT_SEL , A_SEL , DONE} <= 6'b000001;
-          end
-        end
-
-        STATE_DONE: begin
-          if(start == 1) begin
-            state <= STATE_DONE;
-            {LD_SUM , LD_NEXT , SUM_SEL , NEXT_SEL , A_SEL , DONE} <= 6'b000001;
-          end
-          else if(start == 0) begin
-            state <= START;
-            {LD_SUM , LD_NEXT , SUM_SEL , NEXT_SEL , A_SEL , DONE} <= 6'b000000;
-          end
-        end
-      endcase
-    end
+  always @(posedge clk) begin
+    if (rst_n ==0 ) 
+      STATE <= START;   
+    else
+      STATE <= STATENEXT; 
   end
-
 endmodule
